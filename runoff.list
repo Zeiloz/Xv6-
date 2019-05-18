@@ -84,3 +84,25 @@ pdx-kernel.h
 halt.c
 date.h
 date.c
+
+# CS333_P2
+ps.c
+uproc.h
+time.c
+p2-test.c
+testuidgid.c
+testsetuid.c
+cpu_test.c
+inher_test.c
+
+# CS333_P3
+allocate.c
+roundRobin.c
+processdeath.c
+p3-test.c
+
+# CS333_P4
+p4-priority.c
+p4-test.c
+testsetprio.c
+p4-setprio.c

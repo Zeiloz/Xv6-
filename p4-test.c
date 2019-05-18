@@ -1,428 +1,168 @@
 #ifdef CS333_P4
-// Credit to Jacob Collins <jmc27@pdx.edu> who developed this test
-// program and gave me permission to use it
 
+/* ============================================================================= *
+ * Hey CS333 Students!                                                           *
+ * -------------------                                                           *
+ *                                                                               *
+ * Do not modify anything in this file without the explicit permission of the    *
+ * course staff.                                                                 *
+ * ============================================================================= */
+
+
+
+
+/* =============================================================================
+   What does this program do?
+   --------------------------
+
+   This program will create 61 child processes. Each child process will do some
+   amount of meaningless work before it eventually stops.
+
+   *NOTE*
+   You may need to adjust your budget and promotion timers in order to
+   effectively test that those features are working.
+
+
+
+   Instructions for use:
+   ---------------------
+   1) Execute this program at the console.
+   2) Once you are prompted, test your program using the console commands.
+   3) Verify that the results are what you expect.
+
+   Do not change anything about this program without first asking course staff.
+ ============================================================================== */
 #include "types.h"
 #include "user.h"
 #include "param.h"
+#include "pdx.h"
 
-#ifndef TRUE
-#define TRUE 1
-#define FALSE 0
-#endif
+// We've given these somewhat silly names so they don't conflict with your own
+// variable names.
 
-void test1();
-void test2();
-void test3();
-void test4();
-void test5();
-void test6();
-void cleanupProcs(int pid[], int max);
-void sleepMessage(int time, char message[]);
-int createInfiniteProc();
-int createSetPrioProc(int prio);
+// Number of processes to create at once.
+#define P4T_TO_CREATE 5
+// The maximum number of processes to create.
+#define P4T_MAX 60
+// How many seconds any process should live for.
+#define P4T_SECONDS 60
+// How long should we sleep for after creating a process?
+#define P4T_PARENT_SLEEP_SECONDS 1
+// How long should a child designated to sleep actually sleep?
+#define P4T_CHILD_SLEEP_SECONDS 5 * P4T_SECONDS * TPS
+// We use a counter to control how much pointless work we try to accomplish.
+#define COUNTER_START -10000000
+#define COUNTER_END    10000000
 
-
-/* Note:
-     You may need to change the names of MAXPRIO and BUDGET to match the
-     names you have defined in your code.
-*/
-const int plevels = MAXPRIO;
-const int budget = DEFAULT_BUDGET;
-const int promo = TICKS_TO_PROMOTE;
-
-void
-printMenu(void)
+// Create a process and assign a task.
+//
+// Processes will live for P4T_SECONDS.
+//
+// Most processes will perform meaningless work that should burn up their budget
+// and move the process through the different priority queues.
+//
+// Every seventh process will sleep for P4T_CHILD_SLEEP_SECONDS (whatever that
+// might be). This can be used to demonstrate that sleeping processes are not
+// being scheduled in the system.
+int
+createProcess(void)
 {
-  int i = 0;
+  // What time is it right now?
+  int start = uptime();
+  // When should this process stop running?
+  int end = start + (P4T_SECONDS * TPS);
+  // A counter to track the pointless CPU cycles we're using
+  int counter = COUNTER_START;
+  // Store the return value of fork() so we know if this is the child or the
+  // parent process.
+  int rc = fork();
 
-  printf(1, "\n");
-  printf(1, "%d. exit program\n", i++);
-  printf(1, "%d. Round robin scheduling for %d queues.\n", i++, plevels);
-  printf(1, "%d. Promotion should change priority levels for sleeping and running processes.\n", i++);
-  printf(1, "%d. Test demotion resetting budget.\n", i++);
-  printf(1, "%d. Test scheduler operation.\n", i++);
-  printf(1, "%d. Test demotion setting priority level.\n", i++);
-  printf(1, "%d. Test scheduler selection, promotion, and demotion.\n", i++);
+  if (rc == 0) {
+    // we're in the child process, now create an infinite loop
+    while (1) {
+      // This process will only run for 30 seconds and then exit
+      if (uptime() > end) {
+        exit();
+      }
+
+      int pid = 0;
+      pid = getpid();
+
+      // Every seventh process will take a nap and then exit.
+      // The remaining processes will do some work and attempt to fall down
+      // the priority queues.
+      if (pid % 7 == 0) {
+        // I mean it, sleep for a really long time
+        sleep(5*60*1000);
+        exit();
+      } else {
+        // These processes only perform a finite amount of work because
+        // they need to check (look at the top of the while loop) if it is
+        // time to exit.
+        while (counter < COUNTER_END) {
+          ++counter;
+        }
+      }
+
+      counter = COUNTER_START;
+    }
+  } else if (rc < 0) {
+    // You shouldn't see this. If you do, it's because you have a number of
+    // processes running in the background. Like, you've run `p4-test&` followed
+    // by `p4-test&`
+    printf(2, "Fork failed! Done creating\n");
+  }
+
+  return rc;
 }
 
 int
 main(int argc, char* argv[])
 {
-  int select, done;
-  char buf[5];
-  //void (*test[])() = {test1, test2, test3, test4, test5, test6};
+  // Track the count of processes that we've created
+  int pc = 0;
+  int i;
 
-  printf(1, "p4test starting with: MAXPRIO = %d, DEFAULT_BUDGET = %d, TICKS_TO_PROMOTE = %d\n\n",
-      plevels, budget, promo);
-
-  while(1) {
-    done = FALSE;
-    printMenu();
-    printf(1, "Enter test number: ");
-    gets(buf, 5);
-
-    if ((buf[0] == '\n') || buf[0] == '\0') {
-      continue;
+  // Spin up several processes every second
+  // This spreads the processes out so that it should be possible to see
+  // multiple queues in use at the same time.
+  //
+  // If, for some reason, you are not seeing that behavior, adjust the budget
+  // or promotion timer accordingly.
+  while (pc < P4T_MAX) {
+    for (i = 0; i < P4T_TO_CREATE; ++i) {
+      if (createProcess() == -1) {
+        break;
+      }
+      ++pc;
     }
 
-    select = atoi(buf);
-
-    switch(select) {
-      case 0:
-        done = TRUE;
-        break;
-      case 1:
-        test1();
-        break;
-      case 2:
-        test2();
-        break;
-      case 3:
-        test3();
-        break;
-      case 4:
-        test4();
-        break;
-      case 5:
-        test5();
-        break;
-      case 6:
-        test6();
-        break;
-      default:
-        printf(1, "Error: invalid test number.\n");
-    }
-
-    if (done) {
-      break;
-    }
+    printf(1, "Created %d processes. Sleeping for %d seconds.\n",
+           pc % P4T_TO_CREATE ? pc % P4T_TO_CREATE : P4T_TO_CREATE,
+           P4T_PARENT_SLEEP_SECONDS);
+    sleep(P4T_PARENT_SLEEP_SECONDS * TPS);
   }
 
-  /* for(i = 1; i <= test_num; i++) {
-       (*test[atoi(argv[i])-1])();
-     }
-   */
+  printf(1, "Created %d processes.\n", pc);
+
+  // Loop for approximately one minute while prompting for action.
+  for (i = 0; i < 6; ++i) {
+    // Prompt for action!
+    printf(1, "Now verify that your system is working by pressing C-p and then C-r.\n");
+    // Now sleep for 10 seconds so the user can actually do something
+    sleep(10 * TPS);
+  }
+
+  // Just make sure that all child processes have exited so we don't leave
+  // orphaned processes hanging around. If there are any child processes,
+  // print a helpful message and then sleep for 1 second.
+  while (wait() != -1) {
+    printf(1, "Waiting on all child processes to exit...\n");
+    sleep(TPS);
+  }
+
+  printf(1, "Done!\n");
 
   exit();
 }
-
-void
-test1()
-{
-  printf(1, "+=+=+=+=+=+=+=+=+\n");
-  printf(1, "| Start: Test 1 |\n");
-  printf(1, "+=+=+=+=+=+=+=+=+\n");
-  int i;
-  int max = 8;
-  int pid[max];
-
-  for(i = 0; i < max; i++)
-    pid[i] = createInfiniteProc();
-
-  for(i = 0; i < 3; i++)
-    sleepMessage(2000, "Sleeping... ctrl-p\n");
-
-  cleanupProcs(pid, max);
-  printf(1, "+=+=+=+=+=+=+=+\n");
-  printf(1, "| End: Test 1 |\n");
-  printf(1, "+=+=+=+=+=+=+=+\n");
-}
-
-void
-test2()
-{
-  printf(1, "+=+=+=+=+=+=+=+=+=\n");
-  printf(1, "| Start: Test 2a |\n");
-  printf(1, "+=+=+=+=+=+=+=+=+=\n");
-  int i;
-  int pid[2];
-  pid[0]  = createInfiniteProc();
-
-  setpriority(getpid(), plevels);
-
-  i = 0;
-  while(i <= plevels) {
-    sleepMessage(2000, "Sleeping... ctrl-p\n");
-    i++;
-  }
-
-  printf(1, "+=+=+=+=+=+=+=+=\n");
-  printf(1, "| End: Test 2a |\n");
-  printf(1, "+=+=+=+=+=+=+=+=\n");
-  printf(1, "\n");
-  printf(1, "+=+=+=+=+=+=+=+=+=\n");
-  printf(1, "| Start: Test 2b |\n");
-  printf(1, "+=+=+=+=+=+=+=+=+=\n");
-
-  pid[1] = createSetPrioProc(0);
-  setpriority(pid[0], plevels);
-
-  i = 0;
-  while(i <= plevels) {
-    sleepMessage(2000, "Sleeping... ctrl-p\n");
-    i++;
-  }
-
-  cleanupProcs(pid, 2);
-
-  printf(1, "+=+=+=+=+=+=+=+=\n");
-  printf(1, "| End: Test 2b |\n");
-  printf(1, "+=+=+=+=+=+=+=+=\n");
-  printf(1, "\n");
-  printf(1, "+=+=+=+=+=+=+=+=+=\n");
-  printf(1, "| Start: Test 2c |\n");
-  printf(1, "+=+=+=+=+=+=+=+=+=\n");
-
-  int cPid = getpid();
-  int rc = 0;
-
-  printf(1, "Setting priority of the current process to %d... ", plevels);
-
-  rc = setpriority(cPid, plevels);
-
-  if (rc == -1) {
-    printf(2, "setpriority to %s failed!\n\tThis test FAILED.\n", plevels);
-    goto end;
-  }
-
-  rc = getpriority(cPid);
-
-  if (rc != plevels) {
-    printf(2, "getpriority failed! %d != %d\n\tThis test FAILED.\n", plevels, rc);
-    goto end;
-  }
-
-  printf(1, "This test PASSES.\n");
-
-end:
-  printf(1, "+=+=+=+=+=+=+=+=\n");
-  printf(1, "| End: Test 2c |\n");
-  printf(1, "+=+=+=+=+=+=+=+=\n");
-}
-
-void
-test3()
-{
-  printf(1, "+=+=+=+=+=+=+=+=+\n");
-  printf(1, "| Start: Test 3 |\n");
-  printf(1, "+=+=+=+=+=+=+=+=+\n");
-
-  int i;
-  int max = 8;
-  int pid[max];
-
-  for(i = 0; i < max; i++)
-    pid[i] = createInfiniteProc();
-
-  for(i = 0; i <= plevels; i++)
-    sleepMessage(2000, "Sleeping... ctrl-p OR ctrl-r\n");
-
-  cleanupProcs(pid, max);
-
-  printf(1, "+=+=+=+=+=+=+=+\n");
-  printf(1, "| End: Test 3 |\n");
-  printf(1, "+=+=+=+=+=+=+=+\n");
-
-}
-
-void
-test4()
-{
-  if(plevels == 0) {
-    printf(1, "+=+=+=+=+=+=+=+=+=\n");
-    printf(1, "| Start: Test 6a |\n");
-    printf(1, "+=+=+=+=+=+=+=+=+=\n");
-  }
-  else if(plevels == 2) {
-    printf(1, "+=+=+=+=+=+=+=+=+=\n");
-    printf(1, "| Start: Test 4a |\n");
-    printf(1, "+=+=+=+=+=+=+=+=+=\n");
-  }
-  else if(plevels == 6) {
-    printf(1, "+=+=+=+=+=+=+=+=+=\n");
-    printf(1, "| Start: Test 5a |\n");
-    printf(1, "+=+=+=+=+=+=+=+=+=\n");
-  }
-
-  int i;
-  int max = 10;
-  int pid[max];
-
-  for(i = 0; i < max/2; i++)
-    pid[i] = createSetPrioProc(plevels);
-  for(i = max/2; i < max; i++)
-    pid[i] = createSetPrioProc(0);
-
-  for(i = 0; i < 2; i++)
-    sleepMessage(2000, "Sleeping... ctrl-p\n");
-
-  cleanupProcs(pid, max);
-
-  if(plevels == 0) {
-    printf(1, "+=+=+=+=+=+=+=+=\n");
-    printf(1, "| End: Test 6a |\n");
-    printf(1, "+=+=+=+=+=+=+=+=\n");
-  }
-  else if(plevels == 2) {
-    printf(1, "+=+=+=+=+=+=+=+=\n");
-    printf(1, "| End: Test 4a |\n");
-    printf(1, "+=+=+=+=+=+=+=+=\n");
-  }
-  else if(plevels == 6) {
-    printf(1, "+=+=+=+=+=+=+=+=\n");
-    printf(1, "| End: Test 5a |\n");
-    printf(1, "+=+=+=+=+=+=+=+=\n");
-  }
-}
-
-void
-test6()
-{
-  if(plevels == 0) {
-    printf(1, "+=+=+=+=+=+=+=+=+=\n");
-    printf(1, "| Start: Test 6b |\n");
-    printf(1, "+=+=+=+=+=+=+=+=+=\n");
-  }
-  else if(plevels == 2) {
-    printf(1, "+=+=+=+=+=+=+=+=+=\n");
-    printf(1, "| Start: Test 4b |\n");
-    printf(1, "+=+=+=+=+=+=+=+=+=\n");
-  }
-  else if(plevels == 6) {
-    printf(1, "+=+=+=+=+=+=+=+=+=\n");
-    printf(1, "| Start: Test 5b |\n");
-    printf(1, "+=+=+=+=+=+=+=+=+=\n");
-  }
-
-  int i;
-  int max = 8;
-  int pid[max];
-
-  for(i = 0; i < max/2; i++)
-    pid[i] = createInfiniteProc();
-
-  for(i = 0; i <= plevels; i++)
-    sleepMessage(2000, "Sleeping... ctrl-p OR ctrl-r\n");
-  if(plevels == 0)
-    sleepMessage(2000, "Sleeping... ctrl-p OR ctrl-r\n");
-
-  if(plevels == 0) {
-    printf(1, "+=+=+=+=+=+=+=+=\n");
-    printf(1, "| End: Test 6b |\n");
-    printf(1, "+=+=+=+=+=+=+=+=\n");
-    printf(1, "\n");
-    printf(1, "+=+=+=+=+=+=+=+=+=\n");
-    printf(1, "| Start: Test 6c |\n");
-    printf(1, "+=+=+=+=+=+=+=+=+=\n");
-  }
-  else if(plevels == 2) {
-    printf(1, "+=+=+=+=+=+=+=+=\n");
-    printf(1, "| End: Test 4b |\n");
-    printf(1, "+=+=+=+=+=+=+=+=\n");
-    printf(1, "\n");
-    printf(1, "+=+=+=+=+=+=+=+=+=\n");
-    printf(1, "| Start: Test 4c |\n");
-    printf(1, "+=+=+=+=+=+=+=+=+=\n");
-  }
-  else if(plevels == 6) {
-    printf(1, "+=+=+=+=+=+=+=+=\n");
-    printf(1, "| End: Test 5b |\n");
-    printf(1, "+=+=+=+=+=+=+=+=\n");
-    printf(1, "\n");
-    printf(1, "+=+=+=+=+=+=+=+=+=\n");
-    printf(1, "| Start: Test 5c |\n");
-    printf(1, "+=+=+=+=+=+=+=+=+=\n");
-  }
-
-  for(i = max/2; i < max; i++)
-    pid[i] = createInfiniteProc();
-
-  for(i = 0; i <= plevels+1; i++)
-    sleepMessage(2000, "Sleeping... ctrl-p OR ctrl-r\n");
-
-  cleanupProcs(pid, max);
-
-  if(plevels == 0) {
-    printf(1, "+=+=+=+=+=+=+=+=\n");
-    printf(1, "| End: Test 6c |\n");
-    printf(1, "+=+=+=+=+=+=+=+=\n");
-  }
-  else if(plevels == 2) {
-    printf(1, "+=+=+=+=+=+=+=+=\n");
-    printf(1, "| End: Test 4c |\n");
-    printf(1, "+=+=+=+=+=+=+=+=\n");
-  }
-  else if(plevels == 6) {
-    printf(1, "+=+=+=+=+=+=+=+=\n");
-    printf(1, "| End: Test 5c |\n");
-    printf(1, "+=+=+=+=+=+=+=+=\n");
-  }
-
-}
-
-void
-test5()
-{
-  printf(1, "+=+=+=+=+=+=+=+=+\n");
-  printf(1, "| Start: Test 5 |\n");
-  printf(1, "+=+=+=+=+=+=+=+=+\n");
-
-  int i, prio;
-  int max = 10;
-  int pid[max];
-
-  for(i = 0; i < max; i++) {
-    prio = i%(plevels+1);
-    pid[i] = createSetPrioProc(prio);
-    printf(1, "Process %d will be at priority level %d\n", pid[i], prio);
-  }
-
-  sleepMessage(2000, "Sleeping... ctrl-p\n");
-  sleepMessage(2000, "Sleeping... ctrl-r\n");
-
-  cleanupProcs(pid, max);
-  printf(1, "+=+=+=+=+=+=+=+=\n");
-  printf(1, "| End: Test 5 |\n");
-  printf(1, "+=+=+=+=+=+=+=+=\n");
-}
-
-void
-sleepMessage(int time, char message[])
-{
-  printf(1, message);
-  sleep(time);
-}
-
-int
-createInfiniteProc()
-{
-  int pid = fork();
-  if(pid == 0)
-    while(1);
-  printf(1, "Process %d created...\n", pid);
-
-  return pid;
-}
-
-int
-createSetPrioProc(int prio)
-{
-  int pid = fork();
-  if(pid == 0)
-    while(1)
-      setpriority(getpid(), prio);
-
-  return pid;
-}
-
-void
-cleanupProcs(int pid[], int max)
-{
-  int i;
-  for(i = 0; i < max; i++)
-    kill(pid[i]);
-  while(wait() > 0);
-}
-
 #endif

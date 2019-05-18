@@ -1,5 +1,8 @@
 struct stat;
 struct rtcdate;
+#ifdef CS333_P2
+struct uproc;
+#endif
 
 // system calls
 int fork(void);
@@ -39,3 +42,22 @@ void* malloc(uint);
 void free(void*);
 int atoi(const char*);
 int atoo(const char*);
+
+#ifdef CS333_P1
+int date(struct rtcdate*);
+#endif // CS333_P1
+
+#ifdef CS333_P2
+uint getuid (void);                     //UID of the current process
+uint getgid (void);                     //GID of the current process
+uint getppid (void);                    //process ID of the parent process
+
+int setuid (uint);                      //set UID
+int setgid (uint);                      //set GID
+int getprocs(uint max, struct uproc* table);  //copy ptable active processes to uproc
+#endif //CS333_P2
+
+#ifdef CS333_P4
+int setpriority(int pid, int priority); //set priority of current process
+int getpriority(int pid); //get priority of current process
+#endif

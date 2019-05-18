@@ -31,6 +31,13 @@ gidTest(uint nval)
   sleep(5 * TPS);  // now type control-p
 }
 
+static void ppidTest()
+{
+  uint ppid = getppid();
+  printf(1, "Current PPID is: %d\n", ppid);
+  sleep(5 * TPS);  // now type control-p
+}
+
 static void
 forkTest(uint nval)
 {
@@ -76,7 +83,7 @@ invalidTest(uint nval)
 
   printf(1, "Setting UID to %d. This test should FAIL\n", -1);
   if (setuid(-1) < 0)
-    printf(1, "SUCCESS! The setuid sytem call indicated failure\n");
+    printf(1, "SUCCESS! The setuid system call indicated failure\n");
   else
     printf(2, "FAILURE! The setgid system call indicates success\n");
 }
@@ -93,6 +100,9 @@ testuidgid(void)
   // get/set gid test
   nval = 200;
   gidTest(nval);
+
+  //get ppid
+  ppidTest();
 
   // getppid test
   ppid = getppid();

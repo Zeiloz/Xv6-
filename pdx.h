@@ -25,3 +25,15 @@
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
 #endif  // PDX_INCLUDE
+
+#ifdef CS333_P3
+#define statecount NELEM(states)
+#endif
+
+#ifdef CS333_P4
+#define MAXPRIO 6
+#define BUDGET 125
+#define TICKS_TO_PROMOTE 4 * TPS
+#endif
+
+

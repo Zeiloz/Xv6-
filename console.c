@@ -192,6 +192,9 @@ void
 consoleintr(int (*getc)(void))
 {
   int c, doprocdump = 0;
+#ifdef CS333_P3
+  int sleepList = 0, freeList = 0, readyList = 0, zombieList = 0;
+#endif
 
   acquire(&cons.lock);
   while((c = getc()) >= 0){
@@ -200,6 +203,18 @@ consoleintr(int (*getc)(void))
       // procdump() locks cons.lock indirectly; invoke later
       doprocdump = 1;
       break;
+#ifdef CS333_P3
+    case C('S'):
+      sleepList = 1;
+      break;
+    case C('F'):
+      freeList = 1;
+      break;
+    case C('R'):
+      readyList = 1;
+    case C('Z'):
+      zombieList = 1;
+#endif
     case C('U'):  // Kill line.
       while(input.e != input.w &&
             input.buf[(input.e-1) % INPUT_BUF] != '\n'){
@@ -230,6 +245,16 @@ consoleintr(int (*getc)(void))
   if(doprocdump) {
     procdump();  // now call procdump() wo. cons.lock held
   }
+#ifdef CS333_P3
+  else if(sleepList)
+    getSleepList();
+  else if(freeList)
+    getFreeList();
+  else if(readyList)
+    getReadyList();
+  else if(zombieList)
+    getZombieList();
+#endif
 }
 
 int

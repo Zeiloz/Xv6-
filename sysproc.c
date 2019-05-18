@@ -10,6 +10,10 @@
 #include "pdx-kernel.h"
 #endif // PDX_XV6
 
+#ifdef CS333_P2
+#include "uproc.h"
+#endif
+
 int
 sys_fork(void)
 {
@@ -98,3 +102,120 @@ sys_halt(void)
   return 0;
 }
 #endif // PDX_XV6
+
+#ifdef CS333_P1
+int
+sys_date(void)
+{
+  struct rtcdate *d;
+  if(argptr(0, (void*)&d, sizeof(struct rtcdate)) < 0)
+    return -1;
+  else {
+    cmostime(d);
+    return 0;
+  }
+}
+#endif
+
+#ifdef CS333_P2
+int
+sys_getuid(void)
+{
+  struct proc *p = myproc();
+  return p->uid;
+}
+
+int
+sys_getgid(void)
+{
+  struct proc *p = myproc();
+  return p->gid;
+}
+
+int
+sys_getppid(void)
+{
+  struct proc *p = myproc();
+  if(!p->parent)
+  {
+    return p->pid;
+  }
+  else
+  {
+    return p->parent->pid;
+  }
+}
+
+int
+sys_setuid(void)
+{
+  int added_uid;
+  struct proc *p = myproc();
+  argint(0, &added_uid);
+  if(added_uid >= 0 && added_uid <= 32767)
+  {
+    p->uid = added_uid;
+    return RETURN_SUCCESS;
+  }
+  return RETURN_FAILURE;
+}
+
+int
+sys_setgid(void)
+{
+  int added_gid;
+  struct proc *p = myproc();
+  argint(0, &added_gid);
+  if(added_gid >= 0 && added_gid <= 32767)
+  {
+    p->gid = added_gid;
+    return RETURN_SUCCESS;
+  }
+  return RETURN_FAILURE;
+}
+
+int
+sys_getprocs(void)
+{
+  int max;
+  struct uproc* table;
+
+  argint(0, &max);
+  if(max < 0)
+    return -1;
+  if(argptr(1, (void*)&table, sizeof(struct uproc) * max) < 0)
+    return -1;
+  else
+  {
+    return getprocs(max, table);
+  }
+}
+#endif
+
+#ifdef CS333_P4
+int
+sys_setpriority(void)
+{
+  int pid;
+  int priority;
+
+  argint(0, &pid);
+  argint(1, &priority);
+  return setpriority(pid, priority);
+}
+
+int
+sys_getpriority(void)
+{
+  int pid;
+  argint(0, &pid);
+  return getpriority(pid);
+}
+
+#endif
+
+
+
+
+
+
